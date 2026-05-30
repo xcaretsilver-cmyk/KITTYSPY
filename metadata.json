@@ -1,0 +1,6 @@
+{
+  "name": "Kitty Dumper",
+  "description": "An advanced native extraction and dumper utility for developers of Unity & Unreal engine games.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
