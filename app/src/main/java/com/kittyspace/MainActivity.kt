@@ -1545,6 +1545,7 @@ fun KittyDumperMainScreen(viewModel: KittyViewModel = viewModel()) {
                                          value = vipKeyInput,
                                          onValueChange = { vipKeyInput = it; vipKeyError = false },
                                          label = { Text("VIP KEY", color = TextMuted, fontSize = 10.sp) },
+                                         visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                                          colors = OutlinedTextFieldDefaults.colors(
                                              unfocusedBorderColor = BoundaryGray,
                                              focusedBorderColor = Color(0xFF00E676),
@@ -1571,6 +1572,7 @@ fun KittyDumperMainScreen(viewModel: KittyViewModel = viewModel()) {
                                                  if (android.provider.Settings.canDrawOverlays(context)) {
                                                      val svcIntent = android.content.Intent(context, com.kittyspace.FloatingMenuService::class.java).apply {
                                                          putExtra("APP_NAME", appToLaunch?.appName ?: "UNKNOWN GAME")
+                                                         putExtra("PACKAGE_NAME", appToLaunch?.packageName ?: "")
                                                      }
                                                      context.startService(svcIntent)
                                                      

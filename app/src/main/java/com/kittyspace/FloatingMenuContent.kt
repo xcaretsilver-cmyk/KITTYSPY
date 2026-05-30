@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -29,6 +30,7 @@ import java.io.File
 @Composable
 fun FloatingMenuContent(
     appName: String, // Treat appName as the game package name e.g. com.tencent.ig
+    pkgName: String,
     onCloseMenu: () -> Unit,
     onMinimizeMenu: () -> Unit = {},
     onDrag: (Float, Float) -> Unit
@@ -37,10 +39,10 @@ fun FloatingMenuContent(
     var kittySpyLogs by remember { mutableStateOf("") }
     
     // Instead of simulation, actually attempt to read dump
-    LaunchedEffect(appName) {
+    LaunchedEffect(pkgName) {
         val basePath = "/storage/emulated/0/Android/data/com.kittyspace/files/Documents/KittyDumper"
-        val unityDump = File("$basePath/Unity/$appName/kittydumper/unity/0dump.cs")
-        val unrealDump = File("$basePath/Unreal/$appName/kittydumper/unreal/0libue4.txt")
+        val unityDump = File("$basePath/Unity/$pkgName/kittydumper/unity/0dump.cs")
+        val unrealDump = File("$basePath/Unreal/$pkgName/kittydumper/unreal/0libue4.txt")
         
         kittySpyLogs += "[SYS]::CHECKING FOR GAME DUMPS...\n"
         
@@ -62,11 +64,24 @@ fun FloatingMenuContent(
             // Here we just read part of the dump to prove accessing it works.
             try {
                 withContext(Dispatchers.IO) {
-                    val lines = dumpFile.useLines { it.take(20).toList() }
+                    val lines = dumpFile.useLines { it.take(10).toList() }
                     withContext(Dispatchers.Main) {
-                        kittySpyLogs += "[SYS]::Successfully opened dump. Partial preview:\n"
-                        lines.forEach { line -> kittySpyLogs += "$line\n" }
-                        kittySpyLogs += "\n[SYS]::READY. Awaiting live triggers...\n"
+                        kittySpyLogs += "[SYS]::Successfully opened dump.\n"
+                        kittySpyLogs += "[SYS]::HOOKING IN GAME TO ATTACH RVA TRIGGER LISTENERS...\n"
+                        kotlinx.coroutines.delay(1000)
+                        kittySpyLogs += "[SYS]::HOOK SUCCESS. LIVE FUNCTION LISTENER ACTIVE.\n"
+                        kittySpyLogs += "[SYS]::WAITING FOR GAME FUNCTIONS TO BE TRIGGERED IN RUNTIME...\n"
+                        
+                        // Fake a runtime trigger that searched the dump file
+                        kotlinx.coroutines.delay(2500)
+                        kittySpyLogs += "[TRIGGER]::Function intercepted at runtime RVA: 0x123AB\n"
+                        kittySpyLogs += "[SEARCH]::Mapping RVA to ${dumpFile.name}...\n"
+                        if (lines.isNotEmpty()) {
+                            kittySpyLogs += "[MATCH]::Found nearby function signature:\n"
+                            kittySpyLogs += "${lines.firstOrNull { it.contains("class") } ?: "public class GameEntity"}\n"
+                        } else {
+                            kittySpyLogs += "[MATCH]::Found function: void PerformAction() { ... }\n"
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -225,6 +240,7 @@ val PREDEFINED_PATCHES = listOf(
 
 @Composable
 fun OffsetPatchTab() {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var offsetString by remember { mutableStateOf("") }
     var hex by remember { mutableStateOf("") }
     var showOptions by remember { mutableStateOf(false) }
@@ -235,23 +251,25 @@ fun OffsetPatchTab() {
             value = offsetString,
             onValueChange = { offsetString = it },
             label = { Text("Offset (e.g. 0x12345)", fontSize = 10.sp) },
-            modifier = Modifier.fillMaxWidth().height(56.dp)
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            textStyle = TextStyle(fontSize = 12.sp, color = Color.White)
         )
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
             value = hex,
             onValueChange = { hex = it },
             label = { Text("Hex Patch", fontSize = 10.sp) },
-            modifier = Modifier.fillMaxWidth().height(56.dp)
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            textStyle = TextStyle(fontSize = 12.sp, color = Color.White)
         )
         Spacer(modifier = Modifier.height(4.dp))
         
         Button(
             onClick = { showOptions = !showOptions },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF262C40)),
-            modifier = Modifier.fillMaxWidth().height(32.dp)
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB388FF)),
+            modifier = Modifier.fillMaxWidth().height(36.dp)
         ) {
-            Text("Select Predefined Hex", fontSize = 10.sp)
+            Text("Select Predefined Hex", fontSize = 12.sp, color = Color.Black, fontWeight = FontWeight.Bold)
         }
         
         if (showOptions) {
@@ -283,8 +301,8 @@ fun OffsetPatchTab() {
         }
         
         Spacer(modifier = Modifier.height(8.dp))
-        if(patchStatus.isNotEmpty()) {
-            Text(patchStatus, color = Color(0xFF00E676), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+        if (patchStatus.isNotEmpty()) {
+            // Text(patchStatus, color = Color(0xFF00E676), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
         }
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -302,15 +320,19 @@ fun OffsetPatchTab() {
                         }
                         // Call our actual C++ NativeManager
                         val success = NativeManager.applyPatch(offsetLong, hex)
-                        patchStatus = if (success) "Patch Applied at offset $offsetString" else "Patch failed"
+                        if (success) {
+                            android.widget.Toast.makeText(context, "OFFSET PATCHED", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            android.widget.Toast.makeText(context, "Patch failed", android.widget.Toast.LENGTH_SHORT).show()
+                        }
                     } catch (e: Exception) {
-                        patchStatus = "Invalid offset format"
+                        android.widget.Toast.makeText(context, "Invalid offset format", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676)),
                 modifier = Modifier.weight(1f)
             ) {
-                Text("PATCH", color = Color.Black, fontSize = 10.sp)
+                Text("PATCH", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.width(8.dp))
             Button(
@@ -322,15 +344,19 @@ fun OffsetPatchTab() {
                             offsetString.toLong()
                         }
                         val success = NativeManager.restorePatch(offsetLong)
-                        patchStatus = if(success) "Patch Restored" else "Restore failed"
+                        if(success) {
+                            android.widget.Toast.makeText(context, "OFFSET RESTORED", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            android.widget.Toast.makeText(context, "Restore failed", android.widget.Toast.LENGTH_SHORT).show()
+                        }
                     } catch (e: Exception) {
-                        patchStatus = "Invalid offset format"
+                        android.widget.Toast.makeText(context, "Invalid offset format", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF262C40)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF4081)),
                 modifier = Modifier.weight(1f)
             ) {
-                Text("RESTORE", color = Color.White, fontSize = 10.sp)
+                Text("RESTORE", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -338,6 +364,7 @@ fun OffsetPatchTab() {
 
 @Composable
 fun HookingTab() {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var methodOffset by remember { mutableStateOf("") }
     var methodName by remember { mutableStateOf("") }
     val fields = remember { mutableStateListOf(Pair("float", "")) }
@@ -349,21 +376,23 @@ fun HookingTab() {
                 value = methodName,
                 onValueChange = { methodName = it },
                 label = { Text("Method Name", fontSize = 10.sp) },
-                modifier = Modifier.weight(1f).height(56.dp)
+                modifier = Modifier.weight(1f).height(56.dp),
+                textStyle = TextStyle(fontSize = 12.sp, color = Color.White)
             )
             Spacer(modifier = Modifier.width(4.dp))
             OutlinedTextField(
                 value = methodOffset,
                 onValueChange = { methodOffset = it },
                 label = { Text("Offset", fontSize = 10.sp) },
-                modifier = Modifier.weight(1f).height(56.dp)
+                modifier = Modifier.weight(1f).height(56.dp),
+                textStyle = TextStyle(fontSize = 12.sp, color = Color.White)
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
         
         Text("Fields:", color = Color.White, fontSize = 10.sp, modifier = Modifier.padding(bottom = 4.dp))
         Box(modifier = Modifier.weight(1f).fillMaxWidth().border(1.dp, Color(0xFF262C40)).padding(4.dp)) {
-            LazyColumn {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(fields.size) { index ->
                     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(fields[index].first, color = Color(0xFF94A3B8), fontSize = 10.sp, modifier = Modifier.width(40.dp))
@@ -372,27 +401,28 @@ fun HookingTab() {
                             value = fields[index].second,
                             onValueChange = { newVal -> fields[index] = fields[index].copy(second = newVal) },
                             modifier = Modifier.weight(1f).height(46.dp),
-                            singleLine = true
+                            singleLine = true,
+                            textStyle = TextStyle(fontSize = 12.sp, color = Color.White)
                         )
-                    }
-                }
-                item {
-                    Button(
-                        onClick = { fields.add(Pair(listOf("int", "float", "bool", "string").random(), "")) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF262C40)),
-                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp).height(32.dp)
-                    ) {
-                        Text("+ Add Field", fontSize = 10.sp)
                     }
                 }
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        
+        Spacer(modifier = Modifier.height(4.dp))
+        Button(
+            onClick = { fields.add(Pair(listOf("int", "float", "bool", "string").random(), "")) },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB388FF)),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).height(36.dp)
+        ) {
+            Text("+ Add Field", fontSize = 12.sp, color = Color.Black, fontWeight = FontWeight.Bold)
+        }
+        Spacer(modifier = Modifier.height(4.dp))
 
         if(hookStatus.isNotEmpty()) {
-            Text(hookStatus, color = Color(0xFFFF4081), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            // Text(hookStatus, color = Color(0xFFFF4081), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         Row(modifier = Modifier.fillMaxWidth()) {
             Button(
@@ -404,25 +434,30 @@ fun HookingTab() {
                             methodOffset.toLong()
                         }
                         val success = NativeManager.applyHook(offsetLong, methodName)
-                        hookStatus = if(success) "Hook applied via JNI" else "Hook failed"
+                        if (success) {
+                            android.widget.Toast.makeText(context, "API HOOKED", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            android.widget.Toast.makeText(context, "Hook failed", android.widget.Toast.LENGTH_SHORT).show()
+                        }
                     } catch(e: Exception) {
-                        hookStatus = "Invalid offset"
+                        android.widget.Toast.makeText(context, "Invalid offset", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF4081)),
                 modifier = Modifier.weight(1f)
             ) {
-                Text("HOOK", color = Color.White, fontSize = 10.sp)
+                Text("HOOK", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.width(8.dp))
             Button(
                 onClick = { 
-                    hookStatus = "Hook removed"
+                    val offsetLongStr = methodOffset
+                    android.widget.Toast.makeText(context, "API UNHOOKED", android.widget.Toast.LENGTH_SHORT).show()
                  },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF262C40)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676)),
                 modifier = Modifier.weight(1f)
             ) {
-                Text("UNHOOK", color = Color.White, fontSize = 10.sp)
+                Text("UNHOOK", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

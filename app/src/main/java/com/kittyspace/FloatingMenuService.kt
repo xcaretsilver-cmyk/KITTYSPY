@@ -47,11 +47,13 @@ class FloatingMenuService : Service() {
     
     private var params: WindowManager.LayoutParams? = null
     private var appName: String = "UNKNOWN GAME"
+    private var pkgName: String = ""
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         appName = intent?.getStringExtra("APP_NAME") ?: "UNKNOWN GAME"
+        pkgName = intent?.getStringExtra("PACKAGE_NAME") ?: ""
         
         if (!::windowManager.isInitialized) {
             setupFloatingWindow()
@@ -73,7 +75,7 @@ class FloatingMenuService : Service() {
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             layoutFlag,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -86,6 +88,7 @@ class FloatingMenuService : Service() {
                 MyApplicationTheme {
                     FloatingMenuOverlay(
                      appName = appName,
+                     pkgName = pkgName,
                     onClose = { stopSelf() },
                     onDrag = { dx, dy ->
                     moveMenu(dx, dy)
@@ -128,6 +131,7 @@ class FloatingMenuService : Service() {
 @Composable
 fun FloatingMenuOverlay(
     appName: String,
+    pkgName: String,
     onClose: () -> Unit,
     onDrag: (Float, Float) -> Unit
 ) {
@@ -147,6 +151,7 @@ fun FloatingMenuOverlay(
     } else {
         FloatingMenuContent(
          appName = appName,
+         pkgName = pkgName,
          onCloseMenu = onClose,
           onMinimizeMenu = { isMinimized = true },
          onDrag = onDrag
