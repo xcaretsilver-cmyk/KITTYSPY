@@ -20,6 +20,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -370,41 +372,40 @@ fun HookingTab() {
     val fields = remember { mutableStateListOf(Pair("float", "")) }
     var hookStatus by remember { mutableStateOf("") }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Row(modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(
                 value = methodName,
                 onValueChange = { methodName = it },
                 label = { Text("Method Name", fontSize = 10.sp) },
-                modifier = Modifier.weight(1f).height(56.dp),
-                textStyle = TextStyle(fontSize = 12.sp, color = Color.White)
+                modifier = Modifier.weight(1f).height(48.dp),
+                textStyle = TextStyle(fontSize = 10.sp, color = Color.White)
             )
             Spacer(modifier = Modifier.width(4.dp))
             OutlinedTextField(
                 value = methodOffset,
                 onValueChange = { methodOffset = it },
                 label = { Text("Offset", fontSize = 10.sp) },
-                modifier = Modifier.weight(1f).height(56.dp),
-                textStyle = TextStyle(fontSize = 12.sp, color = Color.White)
+                modifier = Modifier.weight(1f).height(48.dp),
+                textStyle = TextStyle(fontSize = 10.sp, color = Color.White)
             )
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         
-        Text("Fields:", color = Color.White, fontSize = 10.sp, modifier = Modifier.padding(bottom = 4.dp))
-        Box(modifier = Modifier.weight(1f).fillMaxWidth().border(1.dp, Color(0xFF262C40)).padding(4.dp)) {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(fields.size) { index ->
-                    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(fields[index].first, color = Color(0xFF94A3B8), fontSize = 10.sp, modifier = Modifier.width(40.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        OutlinedTextField(
-                            value = fields[index].second,
-                            onValueChange = { newVal -> fields[index] = fields[index].copy(second = newVal) },
-                            modifier = Modifier.weight(1f).height(46.dp),
-                            singleLine = true,
-                            textStyle = TextStyle(fontSize = 12.sp, color = Color.White)
-                        )
-                    }
+        Text("Fields:", color = Color.White, fontSize = 10.sp, modifier = Modifier.padding(bottom = 2.dp))
+        
+        Column(modifier = Modifier.fillMaxWidth()) {
+            fields.forEachIndexed { index, fieldPair ->
+                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(fieldPair.first, color = Color(0xFF94A3B8), fontSize = 10.sp, modifier = Modifier.width(36.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    OutlinedTextField(
+                        value = fieldPair.second,
+                        onValueChange = { newVal -> fields[index] = fields[index].copy(second = newVal) },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        singleLine = true,
+                        textStyle = TextStyle(fontSize = 10.sp, color = Color.White)
+                    )
                 }
             }
         }
@@ -413,20 +414,23 @@ fun HookingTab() {
         Button(
             onClick = { fields.add(Pair(listOf("int", "float", "bool", "string").random(), "")) },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB388FF)),
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).height(36.dp)
+            modifier = Modifier.fillMaxWidth().height(32.dp)
         ) {
-            Text("+ Add Field", fontSize = 12.sp, color = Color.Black, fontWeight = FontWeight.Bold)
+            Text("+ Add Field", fontSize = 10.sp, color = Color.Black, fontWeight = FontWeight.Bold)
         }
-        Spacer(modifier = Modifier.height(4.dp))
-
-        if(hookStatus.isNotEmpty()) {
-            // Text(hookStatus, color = Color(0xFFFF4081), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-        }
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         Row(modifier = Modifier.fillMaxWidth()) {
             Button(
                 onClick = { 
+                    if (methodOffset.isEmpty() || methodName.isEmpty()) {
+                        android.widget.Toast.makeText(context, "Please fill in method name and offset", android.widget.Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    if (fields.any { it.second.isEmpty() }) {
+                        android.widget.Toast.makeText(context, "Please fill or remove empty fields", android.widget.Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
                     try {
                         val offsetLong = if (methodOffset.startsWith("0x", true)) {
                             methodOffset.drop(2).toLong(16)
@@ -444,18 +448,22 @@ fun HookingTab() {
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF4081)),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).height(36.dp)
             ) {
                 Text("HOOK", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.width(8.dp))
             Button(
                 onClick = { 
+                    if (methodOffset.isEmpty()) {
+                        android.widget.Toast.makeText(context, "Please provide offset to unhook", android.widget.Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
                     val offsetLongStr = methodOffset
                     android.widget.Toast.makeText(context, "API UNHOOKED", android.widget.Toast.LENGTH_SHORT).show()
                  },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676)),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).height(36.dp)
             ) {
                 Text("UNHOOK", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
