@@ -16,15 +16,17 @@
 # debugging stack traces.
 #-keepattributes SourceFile,LineNumberTable
 
-# Aggressive Obfuscation setup
+# If you keep the line number information, uncomment this to
+# hide the original source file name.
 -renamesourcefileattribute SourceFile
 -keepattributes Exceptions,InnerClasses,Signature,Deprecated,SourceFile,LineNumberTable,*Annotation*,EnclosingMethod
 -repackageclasses ''
 -allowaccessmodification
 
+-keep class com.kittyspace.MainActivity { *; }
+-keep class com.kittyspace.KittyDumperEngine** { *; }
+-keep class com.kittyspace.NativeDumper** { *; }
 -keep class androidx.** { *; }
 -keep class kotlinx.** { *; }
 -keep class kotlin.** { *; }
-# Keep Compose specifics to prevent crashes
--keep class androidx.compose.** { *; }
 -dontwarn **
